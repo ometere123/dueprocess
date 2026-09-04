@@ -5,10 +5,9 @@ networks:
     url: http://127.0.0.1:4000/api
     leader_only: false
 
-  studio-dev:
-    # Consensus v0.6 / Studio v0.123 release-candidate environment.
-    # studio-next.genlayer.com is a browser alias; use the canonical RPC here.
-    url: https://studio-dev.genlayer.com/api
+  studio_devnet:
+    # gltest v0.30 RC built-in name for the Consensus v0.6 Studio preview.
+    # This preset resolves to chain 61997 / the Studio development deployment.
     leader_only: false
 
 paths:
