@@ -16,7 +16,11 @@ jobs:
       - run: pip install -r requirements-direct.txt
       - run: genvm-lint check contracts/dueprocess.py
       - run: genvm-lint check contracts/protected_executor.py
-      - run: pytest tests/direct -v
+      - name: Run pinned Direct Mode suite
+        run: |
+          cp gltest.direct.config.yaml gltest.config.yaml
+          pytest tests/direct -v
+          git restore gltest.config.yaml
       - run: python scripts/preflight.py
 
   studio-dev-rc:
