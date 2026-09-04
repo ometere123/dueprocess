@@ -100,7 +100,7 @@ If anything reports 61999 or the stable Studio RPC, stop before signing.
 
 ### B. Pinned Direct Mode verification
 
-Use a separate environment:
+Use a separate environment. `genlayer-test v0.29` predates the `studio_devnet` config key, so temporarily swap in the localnet-only Direct Mode config while the suite runs.
 
 ```bash
 python -m venv .venv-direct
@@ -110,7 +110,11 @@ pip install -r requirements-direct.txt
 
 genvm-lint check contracts/dueprocess.py
 genvm-lint check contracts/protected_executor.py
+
+cp gltest.direct.config.yaml gltest.config.yaml
 pytest tests/direct -v
+git restore gltest.config.yaml
+
 python scripts/preflight.py
 ```
 
