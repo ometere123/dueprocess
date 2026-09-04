@@ -1,5 +1,7 @@
 """Direct-mode tests for DueProcess procedural validity."""
 
+from genlayer import Address
+
 CONTRACT = "contracts/dueprocess.py"
 SDK_VERSION = "v0.2.16"
 CLASSIFIER = r"DUEPROCESS / PROCEDURAL STEP VERIFICATION"
@@ -21,6 +23,13 @@ NOTICE_TEXT = "Public Notice. Proposal DP-7 was formally published for affected 
 RESPONSE_TEXT = "Response Record. The affected participant submitted a response to Proposal DP-7."
 DECISION_TEXT = "Decision Record. The designated decision maker published the final decision for Proposal DP-7."
 EXEC_TEXT = "Execution Record. The designated executor carried out the finalized decision for Proposal DP-7."
+
+
+def as_address(raw):
+    """Direct fixtures are raw 20-byte values; public ABI calls normally coerce them."""
+    if hasattr(raw, "as_bytes"):
+        return raw
+    return Address("0x" + bytes(raw).hex())
 
 
 def mock_satisfied(vm, pattern, body, evidence):
@@ -83,8 +92,9 @@ def build_charter(vm, deploy):
 def open_started(vm, deploy, alice):
     contract, charter, roles, steps = build_charter(vm, deploy)
     instance = contract.open_process(charter)
+    actor = as_address(alice)
     for role in roles:
-        contract.bind_role(instance, role, alice)
+        contract.bind_role(instance, role, actor)
     contract.start_process(instance)
     return contract, charter, instance, roles, steps
 
@@ -142,7 +152,7 @@ def test_dependencies_can_only_point_backwards(direct_vm, direct_deploy):
 def test_start_requires_every_role_binding(direct_vm, direct_deploy, direct_alice):
     contract, charter, roles, _ = build_charter(direct_vm, direct_deploy)
     instance = contract.open_process(charter)
-    contract.bind_role(instance, roles[0], direct_alice)
+    contract.bind_role(instance, roles[0], as_address(direct_alice))
     with direct_vm.expect_revert("bind every charter role"):
         contract.start_process(instance)
 
