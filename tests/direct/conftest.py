@@ -1,4 +1,46 @@
+from pathlib import Path
+from typing import Any, Callable, Optional
+
 import pytest
+from gltest.direct.loader import deploy_contract
+
+
+PINNED_GENVM_BUNDLE = "v0.2.16"
+
+
+@pytest.fixture
+def direct_deploy(direct_vm) -> Callable[..., Any]:
+    """Load the contract's pinned legacy runner from its proven GenVM bundle."""
+    def _deploy(
+        contract_path: str,
+        *args: Any,
+        sdk_version: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        path = Path(contract_path)
+        if not path.is_absolute():
+            if path.exists():
+                path = path.resolve()
+            else:
+                for base in (
+                    Path.cwd(),
+                    Path.cwd() / "contracts",
+                    Path.cwd() / "intelligent-contracts",
+                ):
+                    candidate = base / contract_path
+                    if candidate.exists():
+                        path = candidate.resolve()
+                        break
+
+        return deploy_contract(
+            path,
+            direct_vm,
+            *args,
+            sdk_version=sdk_version or PINNED_GENVM_BUNDLE,
+            **kwargs,
+        )
+
+    return _deploy
 
 
 @pytest.fixture(autouse=True)
