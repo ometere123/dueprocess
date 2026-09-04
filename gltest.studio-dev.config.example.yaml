@@ -1,0 +1,18 @@
+# Copy this file over gltest.config.yaml only for the live 61997 integration run.
+# Never commit the resulting .env or a real private key.
+networks:
+  default: studio_devnet
+
+  studio_devnet:
+    accounts:
+      - "${STUDIO_DEV_PRIVATE_KEY}"
+    from: "${STUDIO_DEV_PRIVATE_KEY}"
+    leader_only: false
+    default_wait_interval: 10000
+    default_wait_retries: 60
+
+paths:
+  contracts: contracts
+  artifacts: artifacts
+
+environment: .env
