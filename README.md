@@ -99,6 +99,7 @@ Web UI:        https://studio-dev.genlayer.com
 Browser alias: https://studio-next.genlayer.com
 Explorer:      https://explorer-studio-dev.genlayer.com
 CLI alias:     studio-dev
+gltest alias:  studio_devnet
 Currency:      GEN
 ```
 
@@ -117,7 +118,7 @@ tests/direct/
   test_dueprocess.py
 
 tests/integration/
-  test_studionet_lifecycle.py  # now configured for Studio-dev through gltest.config.yaml
+  test_studionet_lifecycle.py  # live target is Studio-dev 61997
 
 docs/
   ARCHITECTURE.md
@@ -134,10 +135,18 @@ There is intentionally **no frontend**. This repository targets the standalone *
 
 ## Local verification
 
+DueProcess deliberately separates two environments:
+
+1. **Pinned contract runtime / Direct Mode** — keeps the contract's hash-pinned execution environment reproducible and runs the adversarial suite that is already proven against it.
+2. **Studio-dev / Consensus v0.6 tooling** — validates the 61997 network, RC client stack, fee-aware integration code, and deployment path.
+
+### 1. Pinned contract runtime / Direct Mode
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-test.txt
+python -m venv .venv-direct
+source .venv-direct/bin/activate   # Windows PowerShell: .venv-direct\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements-direct.txt
 
 genvm-lint check contracts/dueprocess.py
 genvm-lint check contracts/protected_executor.py
@@ -145,15 +154,49 @@ pytest tests/direct -v
 python scripts/preflight.py
 ```
 
-Before any live signing/deployment, verify the target chain without a wallet:
+Expected: both contracts validate and all 13 Direct Mode tests pass.
+
+### 2. Studio-dev / Consensus v0.6 tooling
+
+Use a separate environment so RC packages cannot silently change the pinned Direct Mode harness.
 
 ```bash
+python -m venv .venv-studio
+source .venv-studio/bin/activate   # Windows PowerShell: .venv-studio\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements-test.txt
+
 python scripts/check_studio_dev.py
+genvm-lint check contracts/dueprocess.py
+genvm-lint check contracts/protected_executor.py
+python -m py_compile tests/integration/test_studionet_lifecycle.py scripts/check_studio_dev.py
+python scripts/preflight.py
 ```
 
-It must report chain ID `61997`.
+`python scripts/check_studio_dev.py` must report chain ID `61997` before any signing or deployment.
 
-Before submission, complete the live lifecycle in `docs/REVIEWER_DEMO.md` and record finalized deployment/transaction/fee evidence in `DEPLOYMENT.md`.
+### 3. Funded live Studio-dev integration
+
+The live fee-enabled test must use a dedicated funded 61997 signer; gltest's automatically generated Studio accounts are not persistent funded wallets.
+
+```bash
+cp .env.example .env
+# Set STUDIO_DEV_PRIVATE_KEY locally in .env. Never commit the real value.
+
+cp gltest.studio-dev.config.example.yaml gltest.config.yaml
+
+gltest tests/integration/test_studionet_lifecycle.py -v -s \
+  --network studio_devnet \
+  --fee-profile fee-profile.json \
+  --fee-profile-headroom 1.25
+
+# Restore the tracked non-secret config after the live run.
+git restore gltest.config.yaml
+```
+
+The integration test bootstraps each write with a live `estimate_transaction_fees` quote, waits through finalization, and can produce a measured `fee-profile.json` for repeat deployment and writes.
+
+Before submission, complete the lifecycle in `docs/REVIEWER_DEMO.md` and record finalized deployment/transaction/fee evidence in `DEPLOYMENT.md`.
 
 ## License
 
