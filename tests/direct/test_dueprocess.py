@@ -1,7 +1,7 @@
 """Direct-mode tests for DueProcess procedural validity."""
 
 CONTRACT = "contracts/dueprocess.py"
-SDK_VERSION = "v0.2.12"
+SDK_VERSION = "v0.2.16"
 CLASSIFIER = r"DUEPROCESS / PROCEDURAL STEP VERIFICATION"
 
 BASE = "2026-09-04T09:00:00+00:00"
