@@ -5,47 +5,7 @@ on:
   pull_request:
 
 jobs:
-  patch-instance-step-count:
-    if: ${{ github.event_name == 'push' && github.actor != 'github-actions[bot]' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Persist process instance-step count
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('contracts/dueprocess.py')
-          lines = path.read_text().splitlines()
-          marker = '        self.processes[instance_id] = process'
-          target = 'ProcessOpened(instance_id, charter_id, gl.message.sender_address'
-          locations = [i for i, line in enumerate(lines) if target in line]
-          if len(locations) != 1:
-              raise SystemExit(f'expected one ProcessOpened site, found {len(locations)}')
-          index = locations[0]
-          if marker.strip() in {line.strip() for line in lines[max(0, index - 4):index]}:
-              print('process instance-step count is already persisted')
-          else:
-              lines.insert(index, '        # Persist mutations made after the ProcessInstance was first inserted.')
-              lines.insert(index + 1, marker)
-              path.write_text('\n'.join(lines) + '\n')
-          PY
-      - name: Commit storage fix when needed
-        run: |
-          if git diff --quiet -- contracts/dueprocess.py; then
-            echo 'no contract patch required'
-            exit 0
-          fi
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add contracts/dueprocess.py
-          git commit -m 'fix: persist process instance-step count'
-          git push
-
   verify:
-    needs: patch-instance-step-count
-    if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
