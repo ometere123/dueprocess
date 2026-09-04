@@ -11,12 +11,15 @@ DueProcess uses the GenLayer Studio development preview for its live submission 
 | Web app | `https://studio.genlayer.com` | `https://studio-dev.genlayer.com` |
 | Browser alias | — | `https://studio-next.genlayer.com` |
 | Explorer | `https://explorer-studio.genlayer.com` | `https://explorer-studio-dev.genlayer.com` |
-| CLI alias | `studionet` | `studio-dev` |
+| GenLayer CLI alias | `studionet` | `studio-dev` |
+| gltest v0.30 RC alias | `studionet` | `studio_devnet` |
 | Currency | GEN | GEN |
 
 `studio-next.genlayer.com` may be used to open the preview UI, but programmatic clients should use the canonical `https://studio-dev.genlayer.com/api` endpoint.
 
 Do not relabel the stable `studionet` preset or point it at the preview RPC. The chain ID and consensus deployment must move together.
+
+Important naming distinction: the GenLayer CLI uses `studio-dev`; gltest v0.30 RC uses the built-in `studio_devnet` name. The repository's `gltest.config.yaml` deliberately uses `studio_devnet`, which gives the test runner the correct chain behavior and auto-generated Studio accounts.
 
 ## Compatible RC tooling
 
@@ -43,7 +46,7 @@ Recommended flow:
 5. wait for finalization;
 6. record deposit, consumed fees, and refund separately.
 
-For CLI operations, omitting a manually supplied `--fee-value` lets the current RC derive the required deposit through the supported fee-estimation path. `genlayer estimate-fees` can be used when an explicit quote is needed.
+For CLI operations, omitting a manually supplied `--fee-value` lets the current RC derive the required deposit through the supported fee-estimation path. `genlayer estimate-fees` can be used when an explicit quote is needed. The CLI also accepts `--fee-profile`, `--fee-preset`, and `--appeal-rounds`.
 
 Do not infer GenLayer protocol fees from EVM gas. Studio may report gasless EVM behavior while consensus fees are enabled.
 
@@ -64,19 +67,28 @@ source .venv/bin/activate   # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements-test.txt
 
+python scripts/check_studio_dev.py
 genvm-lint check contracts/dueprocess.py
 genvm-lint check contracts/protected_executor.py
 pytest tests/direct -v
 python scripts/preflight.py
 ```
 
-Expected network after `genlayer network set studio-dev`:
+Expected network after `genlayer network set studio-dev` and `python scripts/check_studio_dev.py`:
 
-- RPC resolves to the Studio development preview;
+- canonical RPC is `https://studio-dev.genlayer.com/api`;
 - `eth_chainId` resolves to `61997`;
 - explorer evidence uses `explorer-studio-dev.genlayer.com`.
 
-If the CLI reports 61999 or the stable Studio RPC, stop and fix the network selection before signing anything.
+If the CLI or read-only guard reports 61999 or the stable Studio RPC, stop and fix the network selection before signing anything.
+
+For gltest live integration, use its RC-specific built-in name:
+
+```bash
+gltest --network studio_devnet tests/integration/test_studionet_lifecycle.py -v
+```
+
+Do not pass `studio-dev` to gltest; that is the GenLayer CLI alias, not the gltest v0.30 RC alias.
 
 ## Wallet and funding
 
@@ -85,6 +97,24 @@ Use a dedicated test wallet. Never commit its private key, mnemonic, browser-wal
 The signer must have enough Studio-dev GEN to cover the quoted fee deposits for two contract deployments plus the complete valid and invalid demo flows. Use the built-in Studio-dev faucet/account selector if available. Recheck balance before deployment and before the semantic-step sequence.
 
 Because Studio-dev is a preview environment, state can reset. A balance, deployment, or transaction from stable Studionet is not proof for chain 61997.
+
+## Deployment commands
+
+The v0.40 RC CLI supports deployment with `--contract`, `--wallet`, `--fee-profile`, `--fees`, `--fee-value`, and `--args`. Prefer automatic/live fee derivation unless a measured fee profile is ready.
+
+DueProcess:
+
+```bash
+genlayer deploy --contract contracts/dueprocess.py
+```
+
+After it finalizes, capture its 61997 address. Then deploy the consumer with that exact address as its constructor argument:
+
+```bash
+genlayer deploy --contract contracts/protected_executor.py --args <DUEPROCESS_61997_ADDRESS>
+```
+
+If using browser-wallet signing, add `--wallet browser`; if using the CLI keystore, use the configured/unlocked keystore. Do not put private keys directly on the command line.
 
 ## Live proof sequence
 
