@@ -1,7 +1,6 @@
 """Direct-mode tests for DueProcess procedural validity."""
 
 CONTRACT = "contracts/dueprocess.py"
-SDK_VERSION = "v0.2.16"
 CLASSIFIER = r"DUEPROCESS / PROCEDURAL STEP VERIFICATION"
 
 BASE = "2026-09-04T09:00:00+00:00"
@@ -49,7 +48,7 @@ def mock_not_satisfied(vm, pattern=r".*example\.com/.*"):
 
 def build_charter(vm, deploy):
     vm.warp(BASE)
-    contract = deploy(CONTRACT, sdk_version=SDK_VERSION)
+    contract = deploy(CONTRACT)
     charter = contract.create_charter(
         "Public Decision Procedure",
         "A reusable four-step notice, response, decision, and execution procedure.",
@@ -141,7 +140,7 @@ def test_sealed_charter_has_hash_and_frozen_shape(direct_vm, direct_deploy):
 
 def test_dependencies_can_only_point_backwards(direct_vm, direct_deploy):
     direct_vm.warp(BASE)
-    contract = direct_deploy(CONTRACT, sdk_version=SDK_VERSION)
+    contract = direct_deploy(CONTRACT)
     charter = contract.create_charter("Procedure", "A sufficiently described procedure")
     role = contract.add_role(charter, "ACTOR")
     first = contract.add_step(charter, "First", role, "Public evidence proves first action.", True, 0, 100)
@@ -260,7 +259,7 @@ def test_validator_rejects_forged_satisfied_leader(direct_vm, direct_deploy, dir
 
 def test_instruction_like_criterion_is_rejected(direct_vm, direct_deploy):
     direct_vm.warp(BASE)
-    contract = direct_deploy(CONTRACT, sdk_version=SDK_VERSION)
+    contract = direct_deploy(CONTRACT)
     charter = contract.create_charter("Procedure", "A sufficiently described procedure")
     role = contract.add_role(charter, "ACTOR")
     with direct_vm.expect_revert("passive data"):
