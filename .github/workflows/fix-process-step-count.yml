@@ -1,0 +1,40 @@
+name: fix-process-step-count
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Persist instance step count at process creation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('contracts/dueprocess.py')
+          s = p.read_text()
+          old = '''            binding_count=u8(0),\n            instance_step_count=u8(0),\n            invalid_step_id=u256(0),\n'''
+          new = '''            binding_count=u8(0),\n            instance_step_count=u8(int(charter.step_count)),\n            invalid_step_id=u256(0),\n'''
+          if old not in s:
+              raise SystemExit('process initializer marker missing')
+          s = s.replace(old, new, 1)
+          old2 = '''            self.process_instance_step_ids[self._index_key(instance_id, int(process.instance_step_count))] = state_id\n            process.instance_step_count = u8(int(process.instance_step_count) + 1)\n'''
+          new2 = '''            self.process_instance_step_ids[self._index_key(instance_id, step_index)] = state_id\n'''
+          if old2 not in s:
+              raise SystemExit('step index marker missing')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add contracts/dueprocess.py
+          git commit -m 'fix: persist process step index cardinality'
+          git push
