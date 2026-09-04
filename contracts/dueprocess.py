@@ -667,8 +667,8 @@ class DueProcess(gl.Contract):
             status=u8(CHARTER_DRAFT),
             created_at=u256(now),
             sealed_at=u256(0),
-            role_ids=DynArray[u256](),
-            step_ids=DynArray[u256](),
+            role_ids=gl.storage.inmem_allocate(DynArray[u256]),
+            step_ids=gl.storage.inmem_allocate(DynArray[u256]),
             definition_hash="",
         )
         self.charters[charter_id] = charter
@@ -738,7 +738,7 @@ class DueProcess(gl.Contract):
             mandatory=bool(mandatory),
             min_delay_seconds=u256(minimum),
             deadline_offset_seconds=u256(deadline),
-            dependency_ids=DynArray[u256](),
+            dependency_ids=gl.storage.inmem_allocate(DynArray[u256]),
         )
         charter.step_ids.append(step_id)
         return step_id
@@ -805,8 +805,8 @@ class DueProcess(gl.Contract):
             created_at=u256(now),
             started_at=u256(0),
             closed_at=u256(0),
-            binding_ids=DynArray[u256](),
-            instance_step_ids=DynArray[u256](),
+            binding_ids=gl.storage.inmem_allocate(DynArray[u256]),
+            instance_step_ids=gl.storage.inmem_allocate(DynArray[u256]),
             invalid_step_id=u256(0),
             invalid_code="",
             final_hash="",
@@ -821,7 +821,7 @@ class DueProcess(gl.Contract):
                 status=u8(STEP_PENDING),
                 completed_at=u256(0),
                 last_attempt_id=u256(0),
-                attempt_ids=DynArray[u256](),
+                attempt_ids=gl.storage.inmem_allocate(DynArray[u256]),
             )
             process.instance_step_ids.append(state_id)
         ProcessOpened(instance_id, charter_id, gl.message.sender_address, charter_hash=str(process.charter_hash)).emit()
