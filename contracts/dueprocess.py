@@ -868,6 +868,8 @@ class DueProcess(gl.Contract):
                 attempt_count=u8(0),
             )
             self.process_instance_step_ids[self._index_key(instance_id, step_index)] = state_id
+        # Persist mutations made after the ProcessInstance was first inserted.
+        self.processes[instance_id] = process
         ProcessOpened(instance_id, charter_id, gl.message.sender_address, charter_hash=str(process.charter_hash)).emit()
         return instance_id
 
