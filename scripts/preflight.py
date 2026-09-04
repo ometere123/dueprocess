@@ -6,6 +6,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = [ROOT / "contracts" / "dueprocess.py", ROOT / "contracts" / "protected_executor.py"]
+NETWORK_CONFIG = ROOT / "gltest.config.yaml"
 
 REQUIRED_DUEPROCESS = [
     "run_nondet_unsafe",
@@ -19,6 +20,10 @@ REQUIRED_DUEPROCESS = [
     "PROCEDURAL_VIOLATION",
 ]
 REQUIRED_CONSUMER = ["@gl.contract_interface", "is_valid", "dueprocess.view().is_valid", "action was already executed"]
+REQUIRED_STUDIO_DEV = [
+    "studio-dev:",
+    "https://studio-dev.genlayer.com/api",
+]
 
 
 def check_file(path: Path, required: list[str]) -> list[str]:
@@ -45,11 +50,18 @@ def main() -> int:
     if "gl.get_contract_at" in due[due.find("def semantic_check"):due.find("class DueProcess")]:
         errors.append("semantic_check unexpectedly performs a cross-contract call")
 
+    network = NETWORK_CONFIG.read_text(encoding="utf-8")
+    for needle in REQUIRED_STUDIO_DEV:
+        if needle not in network:
+            errors.append(f"gltest.config.yaml: missing Studio-dev marker {needle!r}")
+    if "https://studio.genlayer.com/api" in network:
+        errors.append("gltest.config.yaml still contains the stable Studionet RPC")
+
     if errors:
         for error in errors:
             print("FAIL", error)
         return 1
-    print("PASS: syntax and architectural preflight checks succeeded")
+    print("PASS: syntax, architectural, and Studio-dev target preflight checks succeeded")
     return 0
 
 

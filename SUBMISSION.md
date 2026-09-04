@@ -44,7 +44,13 @@ This is substantive validation, not format validation.
 
 The repository includes a second Intelligent Contract, `ProtectedExecutor`, which performs a typed IC-to-IC view call to DueProcess and refuses to execute unless the exact process and charter hash are valid.
 
-The intended StudioNet proof demonstrates both a valid procedure unlocking the consumer and an invalid procedure being refused by the same consumer.
+The intended live proof runs on the Consensus v0.6 **Studio development preview (chain 61997)** and demonstrates both a valid procedure unlocking the consumer and an invalid procedure being refused by the same consumer.
+
+## Network / fee evidence
+
+The submission evidence targets the Studio development preview rather than stable Studionet. Programmatic clients use `https://studio-dev.genlayer.com/api`; explorer evidence uses `https://explorer-studio-dev.genlayer.com`.
+
+Consensus v0.6 deploy/write transactions are fee-aware. Live evidence records the finalized fee deposit, consumption, and refund rather than assuming a fixed or zero fee.
 
 ## Limits
 

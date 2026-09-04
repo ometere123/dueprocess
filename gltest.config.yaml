@@ -5,8 +5,10 @@ networks:
     url: http://127.0.0.1:4000/api
     leader_only: false
 
-  studionet:
-    url: https://studio.genlayer.com/api
+  studio-dev:
+    # Consensus v0.6 / Studio v0.123 release-candidate environment.
+    # studio-next.genlayer.com is a browser alias; use the canonical RPC here.
+    url: https://studio-dev.genlayer.com/api
     leader_only: false
 
 paths:

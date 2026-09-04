@@ -88,6 +88,24 @@ DueProcess deliberately does **not** claim that a public source is globally auth
 
 See `docs/THREAT_MODEL.md` for the complete adversarial model.
 
+## Live target: Studio development preview
+
+The submission proof targets GenLayer's Consensus v0.6 Studio development preview, not stable Studionet.
+
+```text
+Chain ID:      61997
+Canonical RPC: https://studio-dev.genlayer.com/api
+Web UI:        https://studio-dev.genlayer.com
+Browser alias: https://studio-next.genlayer.com
+Explorer:      https://explorer-studio-dev.genlayer.com
+CLI alias:     studio-dev
+Currency:      GEN
+```
+
+The preview is a separate chain/deployment from stable Studionet (`61999`). Do not point the stable `studionet` preset at the preview RPC.
+
+Consensus v0.6 deploys and writes are fee-aware. Use live estimation through the matching RC tooling rather than hardcoding a fee value, and record finalized deposit/consumption/refund data for the submission proof. See `docs/STUDIO_DEV_MIGRATION.md`.
+
 ## Repository layout
 
 ```text
@@ -98,13 +116,18 @@ contracts/
 tests/direct/
   test_dueprocess.py
 
+tests/integration/
+  test_studionet_lifecycle.py  # now configured for Studio-dev through gltest.config.yaml
+
 docs/
   ARCHITECTURE.md
   THREAT_MODEL.md
   REVIEWER_DEMO.md
+  STUDIO_DEV_MIGRATION.md
 
 scripts/
   preflight.py
+  check_studio_dev.py
 ```
 
 There is intentionally **no frontend**. This repository targets the standalone **Intelligent Contracts** category, not Projects.
@@ -114,7 +137,7 @@ There is intentionally **no frontend**. This repository targets the standalone *
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-test.txt
 
 genvm-lint check contracts/dueprocess.py
 genvm-lint check contracts/protected_executor.py
@@ -122,7 +145,15 @@ pytest tests/direct -v
 python scripts/preflight.py
 ```
 
-Before submission, complete the live lifecycle in `docs/REVIEWER_DEMO.md` and record finalized deployment/transaction evidence in `DEPLOYMENT.md`.
+Before any live signing/deployment, verify the target chain without a wallet:
+
+```bash
+python scripts/check_studio_dev.py
+```
+
+It must report chain ID `61997`.
+
+Before submission, complete the live lifecycle in `docs/REVIEWER_DEMO.md` and record finalized deployment/transaction/fee evidence in `DEPLOYMENT.md`.
 
 ## License
 

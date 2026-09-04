@@ -1,8 +1,14 @@
-"""High-signal StudioNet lifecycle checks for DueProcess.
+"""High-signal Studio-dev lifecycle checks for DueProcess.
 
 Direct Mode covers deterministic/adversarial branches cheaply. This suite deploys
-both Intelligent Contracts on StudioNet, exercises real semantic consensus over
-public HTTPS fixtures, and proves a second IC consumes DueProcess validity.
+both Intelligent Contracts on the Consensus v0.6 Studio development preview
+(chain 61997), exercises real semantic consensus over public HTTPS fixtures,
+and proves a second IC consumes DueProcess validity.
+
+The v0.30 RC testing stack is fee-aware. We intentionally do not hardcode a
+feeValue here; the supported client path should obtain the live quote for the
+selected Studio-dev deployment. All evidence writes wait through finalization so
+fee/refund data is settled before the test proceeds.
 """
 
 from gltest import get_contract_factory, get_default_account
@@ -11,7 +17,12 @@ from gltest.assertions import tx_execution_failed, tx_execution_succeeded
 
 DUEPROCESS = "dueprocess.py"
 PROTECTED_EXECUTOR = "protected_executor.py"
-TX_KW = {"consensus_max_rotations": 3, "wait_interval": 10000, "wait_retries": 30}
+TX_KW = {
+    "consensus_max_rotations": 3,
+    "wait_until": "finalized",
+    "wait_interval": 10000,
+    "wait_retries": 60,
+}
 
 # Pin evidence to an immutable repository commit so all validators inspect the
 # exact same public bytes even if main changes later.
@@ -32,8 +43,9 @@ def deploy_dueprocess():
     contract = factory.deploy(
         account=get_default_account(),
         consensus_max_rotations=3,
+        wait_until="finalized",
         wait_interval=10000,
-        wait_retries=30,
+        wait_retries=60,
     )
     assert contract.address
     return contract
@@ -128,8 +140,9 @@ def test_real_consensus_validity_and_cross_contract_gate():
         args=[due.address],
         account=account,
         consensus_max_rotations=3,
+        wait_until="finalized",
         wait_interval=10000,
-        wait_retries=30,
+        wait_retries=60,
     )
     assert consumer.address
 
