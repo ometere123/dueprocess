@@ -1,7 +1,5 @@
 """Direct-mode tests for DueProcess procedural validity."""
 
-from genlayer import Address
-
 CONTRACT = "contracts/dueprocess.py"
 SDK_VERSION = "v0.2.16"
 CLASSIFIER = r"DUEPROCESS / PROCEDURAL STEP VERIFICATION"
@@ -25,11 +23,10 @@ DECISION_TEXT = "Decision Record. The designated decision maker published the fi
 EXEC_TEXT = "Execution Record. The designated executor carried out the finalized decision for Proposal DP-7."
 
 
-def as_address(raw):
-    """Direct fixtures are raw 20-byte values; public ABI calls normally coerce them."""
-    if hasattr(raw, "as_bytes"):
-        return raw
-    return Address("0x" + bytes(raw).hex())
+def alice_address():
+    """Address fixtures are bytes before deployment; create a runtime Address after GenLayer loads."""
+    from gltest.direct import create_address
+    return create_address("alice")
 
 
 def mock_satisfied(vm, pattern, body, evidence):
@@ -89,41 +86,45 @@ def build_charter(vm, deploy):
     return contract, charter, (authority, respondent, decider, executor), (notice, response, decision, execution)
 
 
-def open_started(vm, deploy, alice):
+def open_started(vm, deploy, _alice_fixture):
     contract, charter, roles, steps = build_charter(vm, deploy)
     instance = contract.open_process(charter)
-    actor = as_address(alice)
+    actor = alice_address()
     for role in roles:
         contract.bind_role(instance, role, actor)
     contract.start_process(instance)
     return contract, charter, instance, roles, steps
 
 
-def satisfy_notice(vm, contract, instance, step, alice):
+def satisfy_notice(vm, contract, instance, step, _alice_fixture):
+    actor = alice_address()
     mock_satisfied(vm, r".*example\.com/notice.*", NOTICE_TEXT, NOTICE_TEXT)
     vm.warp(NOTICE_T)
-    with vm.prank(alice):
+    with vm.prank(actor):
         return contract.submit_step(instance, step, NOTICE_URL)
 
 
-def satisfy_response(vm, contract, instance, step, alice):
+def satisfy_response(vm, contract, instance, step, _alice_fixture):
+    actor = alice_address()
     mock_satisfied(vm, r".*example\.com/response.*", RESPONSE_TEXT, RESPONSE_TEXT)
     vm.warp(RESPONSE_T)
-    with vm.prank(alice):
+    with vm.prank(actor):
         return contract.submit_step(instance, step, RESPONSE_URL)
 
 
-def satisfy_decision(vm, contract, instance, step, alice):
+def satisfy_decision(vm, contract, instance, step, _alice_fixture):
+    actor = alice_address()
     mock_satisfied(vm, r".*example\.com/decision.*", DECISION_TEXT, DECISION_TEXT)
     vm.warp(DECISION_T)
-    with vm.prank(alice):
+    with vm.prank(actor):
         return contract.submit_step(instance, step, DECISION_URL)
 
 
-def satisfy_execution(vm, contract, instance, step, alice):
+def satisfy_execution(vm, contract, instance, step, _alice_fixture):
+    actor = alice_address()
     mock_satisfied(vm, r".*example\.com/execution.*", EXEC_TEXT, EXEC_TEXT)
     vm.warp(EXEC_T)
-    with vm.prank(alice):
+    with vm.prank(actor):
         return contract.submit_step(instance, step, EXEC_URL)
 
 
@@ -152,7 +153,7 @@ def test_dependencies_can_only_point_backwards(direct_vm, direct_deploy):
 def test_start_requires_every_role_binding(direct_vm, direct_deploy, direct_alice):
     contract, charter, roles, _ = build_charter(direct_vm, direct_deploy)
     instance = contract.open_process(charter)
-    contract.bind_role(instance, roles[0], as_address(direct_alice))
+    contract.bind_role(instance, roles[0], alice_address())
     with direct_vm.expect_revert("bind every charter role"):
         contract.start_process(instance)
 
@@ -179,9 +180,10 @@ def test_satisfied_evidence_completes_step_and_validator_agrees(direct_vm, direc
 
 def test_weak_evidence_is_retryable_not_invalidating(direct_vm, direct_deploy, direct_alice):
     contract, _, instance, _, steps = open_started(direct_vm, direct_deploy, direct_alice)
+    actor = alice_address()
     mock_not_satisfied(direct_vm, r".*example\.com/notice.*")
     direct_vm.warp(NOTICE_T)
-    with direct_vm.prank(direct_alice):
+    with direct_vm.prank(actor):
         attempt = contract.submit_step(instance, steps[0], NOTICE_URL)
     assert contract.get_attempt(attempt)["verdict_name"] == "NOT_SATISFIED"
     assert contract.get_instance_step(instance, steps[0])["status_name"] == "PENDING"
@@ -190,9 +192,10 @@ def test_weak_evidence_is_retryable_not_invalidating(direct_vm, direct_deploy, d
 
 def test_skipping_predecessor_permanently_invalidates(direct_vm, direct_deploy, direct_alice):
     contract, _, instance, _, steps = open_started(direct_vm, direct_deploy, direct_alice)
+    actor = alice_address()
     decision = steps[2]
     direct_vm.warp(DECISION_T)
-    with direct_vm.prank(direct_alice):
+    with direct_vm.prank(actor):
         attempt = contract.submit_step(instance, decision, DECISION_URL)
     assert contract.get_attempt(attempt)["violation_code"] == "DEPENDENCY_MISSING"
     process = contract.get_process(instance)
@@ -203,10 +206,11 @@ def test_skipping_predecessor_permanently_invalidates(direct_vm, direct_deploy, 
 
 def test_waiting_period_is_deterministic(direct_vm, direct_deploy, direct_alice):
     contract, _, instance, _, steps = open_started(direct_vm, direct_deploy, direct_alice)
+    actor = alice_address()
     notice, response = steps[0], steps[1]
     satisfy_notice(direct_vm, contract, instance, notice, direct_alice)
     direct_vm.warp(RESPONSE_EARLY)
-    with direct_vm.prank(direct_alice):
+    with direct_vm.prank(actor):
         attempt = contract.submit_step(instance, response, RESPONSE_URL)
     assert contract.get_attempt(attempt)["violation_code"] == "TOO_EARLY"
     assert contract.get_process(instance)["status_name"] == "INVALID"
@@ -245,9 +249,10 @@ def test_missed_mandatory_deadline_can_be_crystallized(direct_vm, direct_deploy,
 
 def test_validator_rejects_forged_satisfied_leader(direct_vm, direct_deploy, direct_alice):
     contract, _, instance, _, steps = open_started(direct_vm, direct_deploy, direct_alice)
+    actor = alice_address()
     mock_not_satisfied(direct_vm, r".*example\.com/notice.*")
     direct_vm.warp(NOTICE_T)
-    with direct_vm.prank(direct_alice):
+    with direct_vm.prank(actor):
         contract.submit_step(instance, steps[0], NOTICE_URL)
     forged = {"verdict": 1, "reason": "forged", "evidence": "Proposal DP-7 definitely received valid notice."}
     assert direct_vm.run_validator(leader_result=forged) is False
