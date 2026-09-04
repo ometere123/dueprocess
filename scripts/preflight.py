@@ -20,10 +20,7 @@ REQUIRED_DUEPROCESS = [
     "PROCEDURAL_VIOLATION",
 ]
 REQUIRED_CONSUMER = ["@gl.contract_interface", "is_valid", "dueprocess.view().is_valid", "action was already executed"]
-REQUIRED_STUDIO_DEV = [
-    "studio-dev:",
-    "https://studio-dev.genlayer.com/api",
-]
+REQUIRED_STUDIO_DEV = ["studio_devnet:"]
 
 
 def check_file(path: Path, required: list[str]) -> list[str]:
