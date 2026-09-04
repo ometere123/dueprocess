@@ -142,6 +142,8 @@ DueProcess deliberately separates two environments:
 
 ### 1. Pinned contract runtime / Direct Mode
 
+`genlayer-test v0.29` predates the `studio_devnet` config key, so temporarily use the repository's localnet-only Direct Mode config while running this suite.
+
 ```bash
 python -m venv .venv-direct
 source .venv-direct/bin/activate   # Windows PowerShell: .venv-direct\Scripts\Activate.ps1
@@ -150,7 +152,11 @@ pip install -r requirements-direct.txt
 
 genvm-lint check contracts/dueprocess.py
 genvm-lint check contracts/protected_executor.py
+
+cp gltest.direct.config.yaml gltest.config.yaml
 pytest tests/direct -v
+git restore gltest.config.yaml
+
 python scripts/preflight.py
 ```
 
