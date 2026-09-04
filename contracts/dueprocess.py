@@ -849,7 +849,7 @@ class DueProcess(gl.Contract):
             started_at=u256(0),
             closed_at=u256(0),
             binding_count=u8(0),
-            instance_step_count=u8(0),
+            instance_step_count=u8(int(charter.step_count)),
             invalid_step_id=u256(0),
             invalid_code="",
             final_hash="",
@@ -867,8 +867,7 @@ class DueProcess(gl.Contract):
                 last_attempt_id=u256(0),
                 attempt_count=u8(0),
             )
-            self.process_instance_step_ids[self._index_key(instance_id, int(process.instance_step_count))] = state_id
-            process.instance_step_count = u8(int(process.instance_step_count) + 1)
+            self.process_instance_step_ids[self._index_key(instance_id, step_index)] = state_id
         ProcessOpened(instance_id, charter_id, gl.message.sender_address, charter_hash=str(process.charter_hash)).emit()
         return instance_id
 
