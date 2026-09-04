@@ -1,0 +1,14 @@
+# Local-only configuration for the pinned genlayer-test v0.29 Direct Mode harness.
+# The v0.29 config parser predates the `studio_devnet` preset used by v0.30 RC.
+networks:
+  default: localnet
+
+  localnet:
+    url: http://127.0.0.1:4000/api
+    leader_only: false
+
+paths:
+  contracts: contracts
+  artifacts: artifacts
+
+environment: .env
