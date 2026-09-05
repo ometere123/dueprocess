@@ -46,7 +46,7 @@ Once sealed, the charter receives a `definition_hash`. A process instance pins t
 
 `submit_step` fetches public HTTPS evidence and asks the leader for a bounded result: `SATISFIED`, `NOT_SATISFIED`, `AMBIGUOUS`, or `UNAVAILABLE`. For `SATISFIED`, the result must include a short verbatim excerpt from the fetched source.
 
-The custom `run_nondet_unsafe` validator does **not** trust the leader result. Every validator independently fetches the same public source, re-runs the frozen criterion evaluation, requires the stable verdict to match, and verifies a `SATISFIED` excerpt is literally present in the independently fetched source.
+The `run_nondet_default` validator does **not** trust the leader result. Every validator independently fetches the same public source, re-runs the frozen criterion evaluation, requires the stable verdict to match, and verifies that a `SATISFIED` excerpt is literally present in the validator's independently fetched source.
 
 The LLM never controls role authorization, dependency order, waiting periods, deadlines, terminal invalidation, or final validity.
 
