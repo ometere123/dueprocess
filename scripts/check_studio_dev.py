@@ -17,7 +17,15 @@ EXPLORER = "https://explorer-studio-dev.genlayer.com"
 
 def rpc(method: str, params: list | None = None):
     body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params or []}).encode()
-    request = Request(RPC, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    request = Request(
+        RPC,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "DueProcess-studio-dev-guard/1.0",
+        },
+        method="POST",
+    )
     with urlopen(request, timeout=20) as response:
         payload = json.loads(response.read().decode("utf-8"))
     if "error" in payload:

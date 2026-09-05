@@ -1,7 +1,9 @@
-# v0.1.0
-# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
+# v0.3.0
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 
-from genlayer import *
+import genlayer as gl
+from genlayer.types import *
+from genlayer.storage import TreeMap
 
 import json
 import typing
@@ -63,7 +65,7 @@ CONTROL_MARKERS = (
 )
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class Charter:
     owner: Address
@@ -77,14 +79,14 @@ class Charter:
     definition_hash: str
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class RoleDefinition:
     charter_id: u256
     label: str
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class StepDefinition:
     charter_id: u256
@@ -97,7 +99,7 @@ class StepDefinition:
     dependency_count: u8
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class ProcessInstance:
     controller: Address
@@ -114,7 +116,7 @@ class ProcessInstance:
     final_hash: str
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class RoleBinding:
     instance_id: u256
@@ -122,7 +124,7 @@ class RoleBinding:
     actor: Address
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class InstanceStep:
     instance_id: u256
@@ -133,7 +135,7 @@ class InstanceStep:
     attempt_count: u8
 
 
-@allow_storage
+@gl.storage.allow
 @dataclass
 class StepAttempt:
     instance_id: u256
@@ -147,15 +149,15 @@ class StepAttempt:
     violation_code: str
 
 
-@gl.contract_interface
+@gl.contract.interface
 class IDueProcess:
     class View:
-        def get_charter(self, charter_id: u256) -> dict: ...
-        def get_role(self, role_id: u256) -> dict: ...
-        def get_step(self, step_id: u256) -> dict: ...
-        def get_process(self, instance_id: u256) -> dict: ...
-        def get_instance_step(self, instance_id: u256, step_id: u256) -> dict: ...
-        def get_attempt(self, attempt_id: u256) -> dict: ...
+        def get_charter(self, charter_id: u256) -> dict[str, typing.Any]: ...
+        def get_role(self, role_id: u256) -> dict[str, typing.Any]: ...
+        def get_step(self, step_id: u256) -> dict[str, typing.Any]: ...
+        def get_process(self, instance_id: u256) -> dict[str, typing.Any]: ...
+        def get_instance_step(self, instance_id: u256, step_id: u256) -> dict[str, typing.Any]: ...
+        def get_attempt(self, attempt_id: u256) -> dict[str, typing.Any]: ...
         def is_valid(self, instance_id: u256, expected_charter_hash: str) -> bool: ...
         def current_charter_hash(self, charter_id: u256) -> str: ...
 
@@ -183,31 +185,31 @@ class IDueProcess:
         def abort_draft_process(self, instance_id: u256) -> None: ...
 
 
-class CharterCreated(gl.Event):
+class CharterCreated(gl.chain.Event):
     def __init__(self, charter_id: u256, owner: Address, /, **blob): ...
 
 
-class CharterSealed(gl.Event):
+class CharterSealed(gl.chain.Event):
     def __init__(self, charter_id: u256, /, **blob): ...
 
 
-class ProcessOpened(gl.Event):
+class ProcessOpened(gl.chain.Event):
     def __init__(self, instance_id: u256, charter_id: u256, controller: Address, /, **blob): ...
 
 
-class ProcessStarted(gl.Event):
+class ProcessStarted(gl.chain.Event):
     def __init__(self, instance_id: u256, /, **blob): ...
 
 
-class StepAttempted(gl.Event):
-    def __init__(self, attempt_id: u256, instance_id: u256, step_id: u256, verdict: u8, /, **blob): ...
+class StepAttempted(gl.chain.Event):
+    def __init__(self, attempt_id: u256, instance_id: u256, step_id: u256, /, **blob): ...
 
 
-class ProcessInvalidated(gl.Event):
+class ProcessInvalidated(gl.chain.Event):
     def __init__(self, instance_id: u256, step_id: u256, /, **blob): ...
 
 
-class ProcessFinalized(gl.Event):
+class ProcessFinalized(gl.chain.Event):
     def __init__(self, instance_id: u256, /, **blob): ...
 
 
@@ -220,20 +222,7 @@ def hash_text(value: str) -> str:
 
 
 def message_timestamp() -> int:
-    message = getattr(gl, "message", None)
-    raw_message = getattr(message, "raw", None)
-    raw = getattr(raw_message, "datetime", None)
-    if raw in (None, ""):
-        mapping = getattr(gl, "message_raw", None)
-        raw = mapping.get("datetime", "") if isinstance(mapping, dict) else ""
-    if isinstance(raw, int):
-        return int(raw)
-    if not isinstance(raw, str) or raw.strip() == "":
-        raise gl.vm.UserError(f"{ERR_EXPECTED}: transaction timestamp is unavailable")
-    parsed = datetime.fromisoformat(raw.strip().replace("Z", "+00:00"))
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return int(parsed.timestamp())
+    return int(datetime.now(timezone.utc).timestamp())
 
 
 def status_name(status: int) -> str:
@@ -445,13 +434,13 @@ def semantic_check(url: str, charter_title: str, step_label: str, criterion: str
                 return False
         return True
 
-    result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+    result = gl.vm.run_nondet_default(leader_fn, validator_fn)
     if not isinstance(result, dict) or not valid_result_shape(result):
         raise gl.vm.UserError(f"{ERR_EXPECTED}: consensus returned invalid step result")
     return result
 
 
-class DueProcess(gl.Contract):
+class DueProcess(gl.contract.Contract):
     """Consensus-backed procedural validity primitive for public, verifiable processes."""
 
     charters: TreeMap[u256, Charter]
@@ -480,13 +469,13 @@ class DueProcess(gl.Contract):
     next_attempt_id: u256
 
     def __init__(self):
-        self.next_charter_id = u256(1)
-        self.next_role_id = u256(1)
-        self.next_step_id = u256(1)
-        self.next_process_id = u256(1)
-        self.next_binding_id = u256(1)
-        self.next_instance_step_id = u256(1)
-        self.next_attempt_id = u256(1)
+        self.next_charter_id = 1
+        self.next_role_id = 1
+        self.next_step_id = 1
+        self.next_process_id = 1
+        self.next_binding_id = 1
+        self.next_instance_step_id = 1
+        self.next_attempt_id = 1
 
     def _charter(self, charter_id: u256) -> Charter:
         if int(charter_id) <= 0 or int(charter_id) >= int(self.next_charter_id):
@@ -522,7 +511,7 @@ class DueProcess(gl.Contract):
             raise gl.vm.UserError(f"{ERR_EXPECTED}: only process controller")
 
     def _index_key(self, owner_id: u256, index: int) -> u256:
-        return u256(int(owner_id) * INDEX_STRIDE + int(index))
+        return int(owner_id) * INDEX_STRIDE + int(index)
 
     def _charter_role_id(self, charter_id: u256, index: int) -> u256:
         return self.charter_role_ids[self._index_key(charter_id, index)]
@@ -637,13 +626,13 @@ class DueProcess(gl.Contract):
         violation_code: str,
     ) -> u256:
         attempt_id = self.next_attempt_id
-        self.next_attempt_id = u256(int(self.next_attempt_id) + 1)
+        self.next_attempt_id = int(self.next_attempt_id) + 1
         attempt = StepAttempt(
             instance_id=instance_id,
             step_id=step_id,
             actor=gl.message.sender_address,
-            attempted_at=u256(now),
-            verdict=u8(verdict),
+            attempted_at=now,
+            verdict=verdict,
             evidence_url=str(evidence_url),
             reason=clean_text(reason, MAX_REASON_LEN),
             evidence=str(evidence)[:MAX_EVIDENCE_LEN],
@@ -654,29 +643,29 @@ class DueProcess(gl.Contract):
             raise gl.vm.UserError(f"{ERR_EXPECTED}: too many attempts for step")
         self.attempts[attempt_id] = attempt
         state.last_attempt_id = attempt_id
-        state_slot = u256(0)
+        state_slot = 0
         for index in range(int(process.instance_step_count)):
             candidate_id = self._process_instance_step_id(instance_id, index)
             if int(candidate_id) > 0 and int(self.instance_steps[candidate_id].step_id) == int(step_id):
                 state_slot = candidate_id
                 break
         self.instance_step_attempt_ids[self._index_key(state_slot, int(state.attempt_count))] = attempt_id
-        state.attempt_count = u8(int(state.attempt_count) + 1)
+        state.attempt_count = int(state.attempt_count) + 1
         StepAttempted(
             attempt_id,
             instance_id,
             step_id,
-            u8(verdict),
+            verdict=verdict,
             verdict_name=verdict_name(verdict),
             violation_code=str(attempt.violation_code),
         ).emit()
         return attempt_id
 
     def _invalidate(self, process: ProcessInstance, instance_id: u256, step_id: u256, code: str, now: int) -> None:
-        process.status = u8(PROCESS_INVALID)
+        process.status = PROCESS_INVALID
         process.invalid_step_id = step_id
         process.invalid_code = clean_text(code, 80).upper()
-        process.closed_at = u256(now)
+        process.closed_at = now
         process.final_hash = hash_text(self._final_payload(instance_id))
         ProcessInvalidated(
             instance_id,
@@ -695,16 +684,16 @@ class DueProcess(gl.Contract):
             raise gl.vm.UserError(f"{ERR_EXPECTED}: charter text must be passive data")
         now = message_timestamp()
         charter_id = self.next_charter_id
-        self.next_charter_id = u256(int(self.next_charter_id) + 1)
+        self.next_charter_id = int(self.next_charter_id) + 1
         charter = Charter(
             owner=gl.message.sender_address,
             title=title,
             purpose=purpose,
-            status=u8(CHARTER_DRAFT),
-            created_at=u256(now),
-            sealed_at=u256(0),
-            role_count=u8(0),
-            step_count=u8(0),
+            status=CHARTER_DRAFT,
+            created_at=now,
+            sealed_at=0,
+            role_count=0,
+            step_count=0,
             definition_hash="",
         )
         self.charters[charter_id] = charter
@@ -727,10 +716,10 @@ class DueProcess(gl.Contract):
             if str(self.roles[existing_id].label).lower() == label.lower():
                 raise gl.vm.UserError(f"{ERR_EXPECTED}: duplicate role label")
         role_id = self.next_role_id
-        self.next_role_id = u256(int(self.next_role_id) + 1)
+        self.next_role_id = int(self.next_role_id) + 1
         self.roles[role_id] = RoleDefinition(charter_id=charter_id, label=label)
         self.charter_role_ids[self._index_key(charter_id, int(charter.role_count))] = role_id
-        charter.role_count = u8(int(charter.role_count) + 1)
+        charter.role_count = int(charter.role_count) + 1
         return role_id
 
     @gl.public.write
@@ -767,19 +756,19 @@ class DueProcess(gl.Contract):
         if deadline != 0 and minimum > deadline:
             raise gl.vm.UserError(f"{ERR_EXPECTED}: min delay cannot exceed deadline")
         step_id = self.next_step_id
-        self.next_step_id = u256(int(self.next_step_id) + 1)
+        self.next_step_id = int(self.next_step_id) + 1
         self.steps[step_id] = StepDefinition(
             charter_id=charter_id,
             label=label,
             required_role_id=required_role_id,
             criterion=criterion,
             mandatory=bool(mandatory),
-            min_delay_seconds=u256(minimum),
-            deadline_offset_seconds=u256(deadline),
-            dependency_count=u8(0),
+            min_delay_seconds=minimum,
+            deadline_offset_seconds=deadline,
+            dependency_count=0,
         )
         self.charter_step_ids[self._index_key(charter_id, int(charter.step_count))] = step_id
-        charter.step_count = u8(int(charter.step_count) + 1)
+        charter.step_count = int(charter.step_count) + 1
         return step_id
 
     @gl.public.write
@@ -811,7 +800,7 @@ class DueProcess(gl.Contract):
             if int(self._step_dependency_id(step_id, index)) == int(depends_on_step_id):
                 raise gl.vm.UserError(f"{ERR_EXPECTED}: duplicate dependency")
         self.step_dependency_ids[self._index_key(step_id, int(step.dependency_count))] = depends_on_step_id
-        step.dependency_count = u8(int(step.dependency_count) + 1)
+        step.dependency_count = int(step.dependency_count) + 1
 
     @gl.public.write
     def seal_charter(self, charter_id: u256) -> None:
@@ -823,13 +812,13 @@ class DueProcess(gl.Contract):
             raise gl.vm.UserError(f"{ERR_EXPECTED}: charter needs at least one role and step")
         now = message_timestamp()
         charter.definition_hash = hash_text(self._definition_payload(charter_id))
-        charter.status = u8(CHARTER_SEALED)
-        charter.sealed_at = u256(now)
+        charter.status = CHARTER_SEALED
+        charter.sealed_at = now
         CharterSealed(
             charter_id,
             definition_hash=str(charter.definition_hash),
-            role_count=u256(int(charter.role_count)),
-            step_count=u256(int(charter.step_count)),
+            role_count=int(charter.role_count),
+            step_count=int(charter.step_count),
         ).emit()
 
     @gl.public.write
@@ -839,18 +828,18 @@ class DueProcess(gl.Contract):
             raise gl.vm.UserError(f"{ERR_EXPECTED}: charter must be sealed")
         now = message_timestamp()
         instance_id = self.next_process_id
-        self.next_process_id = u256(int(self.next_process_id) + 1)
+        self.next_process_id = int(self.next_process_id) + 1
         process = ProcessInstance(
             controller=gl.message.sender_address,
             charter_id=charter_id,
             charter_hash=str(charter.definition_hash),
-            status=u8(PROCESS_DRAFT),
-            created_at=u256(now),
-            started_at=u256(0),
-            closed_at=u256(0),
-            binding_count=u8(0),
-            instance_step_count=u8(int(charter.step_count)),
-            invalid_step_id=u256(0),
+            status=PROCESS_DRAFT,
+            created_at=now,
+            started_at=0,
+            closed_at=0,
+            binding_count=0,
+            instance_step_count=int(charter.step_count),
+            invalid_step_id=0,
             invalid_code="",
             final_hash="",
         )
@@ -858,14 +847,14 @@ class DueProcess(gl.Contract):
         for step_index in range(int(charter.step_count)):
             step_id = self._charter_step_id(charter_id, step_index)
             state_id = self.next_instance_step_id
-            self.next_instance_step_id = u256(int(self.next_instance_step_id) + 1)
+            self.next_instance_step_id = int(self.next_instance_step_id) + 1
             self.instance_steps[state_id] = InstanceStep(
                 instance_id=instance_id,
                 step_id=step_id,
-                status=u8(STEP_PENDING),
-                completed_at=u256(0),
-                last_attempt_id=u256(0),
-                attempt_count=u8(0),
+                status=STEP_PENDING,
+                completed_at=0,
+                last_attempt_id=0,
+                attempt_count=0,
             )
             self.process_instance_step_ids[self._index_key(instance_id, step_index)] = state_id
         # Persist mutations made after the ProcessInstance was first inserted.
@@ -887,10 +876,10 @@ class DueProcess(gl.Contract):
         if self._find_binding(instance_id, process, int(role_id)) is not None:
             raise gl.vm.UserError(f"{ERR_EXPECTED}: role already bound")
         binding_id = self.next_binding_id
-        self.next_binding_id = u256(int(self.next_binding_id) + 1)
+        self.next_binding_id = int(self.next_binding_id) + 1
         self.bindings[binding_id] = RoleBinding(instance_id=instance_id, role_id=role_id, actor=actor)
         self.process_binding_ids[self._index_key(instance_id, int(process.binding_count))] = binding_id
-        process.binding_count = u8(int(process.binding_count) + 1)
+        process.binding_count = int(process.binding_count) + 1
         return binding_id
 
     @gl.public.write
@@ -905,9 +894,9 @@ class DueProcess(gl.Contract):
             if self._find_binding(instance_id, process, int(role_id)) is None:
                 raise gl.vm.UserError(f"{ERR_EXPECTED}: bind every charter role before starting")
         now = message_timestamp()
-        process.status = u8(PROCESS_ACTIVE)
-        process.started_at = u256(now)
-        ProcessStarted(instance_id, started_at=u256(now), charter_hash=str(process.charter_hash)).emit()
+        process.status = PROCESS_ACTIVE
+        process.started_at = now
+        ProcessStarted(instance_id, started_at=now, charter_hash=str(process.charter_hash)).emit()
 
     @gl.public.write
     def submit_step(self, instance_id: u256, step_id: u256, evidence_url: str) -> u256:
@@ -989,8 +978,8 @@ class DueProcess(gl.Contract):
             "",
         )
         if verdict == VERDICT_SATISFIED:
-            state.status = u8(STEP_SATISFIED)
-            state.completed_at = u256(now)
+            state.status = STEP_SATISFIED
+            state.completed_at = now
         return attempt_id
 
     @gl.public.write
@@ -1027,12 +1016,12 @@ class DueProcess(gl.Contract):
             if bool(step.mandatory) and int(state.status) != STEP_SATISFIED:
                 raise gl.vm.UserError(f"{ERR_EXPECTED}: mandatory steps remain incomplete")
         now = message_timestamp()
-        process.status = u8(PROCESS_VALID)
-        process.closed_at = u256(now)
+        process.status = PROCESS_VALID
+        process.closed_at = now
         process.final_hash = hash_text(self._final_payload(instance_id))
         ProcessFinalized(
             instance_id,
-            status=u8(PROCESS_VALID),
+            status=PROCESS_VALID,
             charter_hash=str(process.charter_hash),
             final_hash=str(process.final_hash),
         ).emit()
@@ -1044,12 +1033,12 @@ class DueProcess(gl.Contract):
         if int(process.status) != PROCESS_DRAFT:
             raise gl.vm.UserError(f"{ERR_EXPECTED}: only draft processes can be aborted")
         now = message_timestamp()
-        process.status = u8(PROCESS_ABORTED)
-        process.closed_at = u256(now)
+        process.status = PROCESS_ABORTED
+        process.closed_at = now
         process.final_hash = hash_text(self._final_payload(instance_id))
 
     @gl.public.view
-    def get_charter(self, charter_id: u256) -> dict:
+    def get_charter(self, charter_id: u256) -> dict[str, typing.Any]:
         charter = self._charter(charter_id)
         return {
             "owner": str(charter.owner),
@@ -1065,12 +1054,12 @@ class DueProcess(gl.Contract):
         }
 
     @gl.public.view
-    def get_role(self, role_id: u256) -> dict:
+    def get_role(self, role_id: u256) -> dict[str, typing.Any]:
         role = self._role(role_id)
         return {"charter_id": int(role.charter_id), "label": str(role.label)}
 
     @gl.public.view
-    def get_step(self, step_id: u256) -> dict:
+    def get_step(self, step_id: u256) -> dict[str, typing.Any]:
         step = self._step(step_id)
         return {
             "charter_id": int(step.charter_id),
@@ -1084,7 +1073,7 @@ class DueProcess(gl.Contract):
         }
 
     @gl.public.view
-    def get_process(self, instance_id: u256) -> dict:
+    def get_process(self, instance_id: u256) -> dict[str, typing.Any]:
         process = self._process(instance_id)
         return {
             "controller": str(process.controller),
@@ -1102,7 +1091,7 @@ class DueProcess(gl.Contract):
         }
 
     @gl.public.view
-    def get_instance_step(self, instance_id: u256, step_id: u256) -> dict:
+    def get_instance_step(self, instance_id: u256, step_id: u256) -> dict[str, typing.Any]:
         process = self._process(instance_id)
         state = self._find_instance_step(instance_id, process, int(step_id))
         return {
@@ -1120,7 +1109,7 @@ class DueProcess(gl.Contract):
         }
 
     @gl.public.view
-    def get_attempt(self, attempt_id: u256) -> dict:
+    def get_attempt(self, attempt_id: u256) -> dict[str, typing.Any]:
         attempt = self._attempt(attempt_id)
         return {
             "instance_id": int(attempt.instance_id),
@@ -1151,7 +1140,7 @@ class DueProcess(gl.Contract):
         return str(charter.definition_hash)
 
     @gl.public.view
-    def get_status_dictionary(self) -> dict:
+    def get_status_dictionary(self) -> dict[str, typing.Any]:
         return {
             "process": {
                 "DRAFT": PROCESS_DRAFT,

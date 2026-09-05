@@ -10,6 +10,8 @@ When this test is run with --fee-profile, gltest records finalized consumption a
 builds the measured profile that should be used for later deployment/submission.
 """
 
+import os
+
 from gltest import get_contract_factory, get_default_account
 from gltest.assertions import tx_execution_failed, tx_execution_succeeded
 from gltest.clients import get_gl_client
@@ -63,6 +65,9 @@ def assert_success(receipt):
 
 def deploy_dueprocess():
     factory = get_contract_factory(contract_file_path=DUEPROCESS)
+    existing = os.environ.get("CANONICAL_DUEPROCESS_ADDRESS")
+    if existing:
+        return factory.build_contract(existing, account=get_default_account())
     contract = factory.deploy(
         account=get_default_account(),
         fees=transaction_fee_preset(),
@@ -76,12 +81,16 @@ def deploy_dueprocess():
 
 
 def create_demo_charter(contract):
-    assert_success(tx(contract.create_charter(args=[
-        "Public Decision Procedure",
-        "A reusable four-step notice, response, decision, and execution procedure.",
-    ])))
-
     charter_id = 1
+    if not os.environ.get("CANONICAL_DUEPROCESS_ADDRESS"):
+        assert_success(tx(contract.create_charter(args=[
+            "Public Decision Procedure",
+            "A reusable four-step notice, response, decision, and execution procedure.",
+        ])))
+    else:
+        existing = contract.get_charter(args=[charter_id]).call()
+        assert existing["title"] == "Demo Charter"
+        assert existing["purpose"] == "Procedural validity demonstration"
     for label, expected_id in (
         ("NOTICE_AUTHORITY", 1),
         ("RESPONDENT", 2),
@@ -159,15 +168,19 @@ def test_real_consensus_validity_and_cross_contract_gate():
     assert due.is_valid(args=[valid_id, charter_hash]).call() is True
 
     consumer_factory = get_contract_factory(contract_file_path=PROTECTED_EXECUTOR)
-    consumer = consumer_factory.deploy(
-        args=[due.address],
-        account=account,
-        fees=transaction_fee_preset(),
-        consensus_max_rotations=3,
-        wait_until="finalized",
-        wait_interval=10000,
-        wait_retries=60,
-    )
+    existing_consumer = os.environ.get("CANONICAL_PROTECTED_EXECUTOR_ADDRESS")
+    if existing_consumer:
+        consumer = consumer_factory.build_contract(existing_consumer, account=account)
+    else:
+        consumer = consumer_factory.deploy(
+            args=[due.address],
+            account=account,
+            fees=transaction_fee_preset(),
+            consensus_max_rotations=3,
+            wait_until="finalized",
+            wait_interval=10000,
+            wait_retries=60,
+        )
     assert consumer.address
 
     good_action = "11" * 32

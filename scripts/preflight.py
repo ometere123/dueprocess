@@ -9,7 +9,7 @@ CONTRACTS = [ROOT / "contracts" / "dueprocess.py", ROOT / "contracts" / "protect
 NETWORK_CONFIG = ROOT / "gltest.config.yaml"
 
 REQUIRED_DUEPROCESS = [
-    "run_nondet_unsafe",
+    "run_nondet_default",
     "inspect_evidence_once",
     "seal_charter",
     "submit_step",
@@ -19,7 +19,7 @@ REQUIRED_DUEPROCESS = [
     "definition_hash",
     "PROCEDURAL_VIOLATION",
 ]
-REQUIRED_CONSUMER = ["@gl.contract_interface", "is_valid", "dueprocess.view().is_valid", "action was already executed"]
+REQUIRED_CONSUMER = ["@gl.contract.interface", "is_valid", "dueprocess.view().is_valid", "action was already executed"]
 REQUIRED_STUDIO_DEV = ["studio_devnet:"]
 
 
@@ -36,10 +36,37 @@ def check_file(path: Path, required: list[str]) -> list[str]:
     return errors
 
 
+def check_event_topics(path: Path) -> list[str]:
+    errors = []
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+        is_event = any(
+            isinstance(base, ast.Attribute)
+            and isinstance(base.value, ast.Attribute)
+            and isinstance(base.value.value, ast.Name)
+            and base.value.value.id == "gl"
+            and base.value.attr == "chain"
+            and base.attr == "Event"
+            for base in node.bases
+        )
+        if not is_event:
+            continue
+        init = next((item for item in node.body if isinstance(item, ast.FunctionDef) and item.name == "__init__"), None)
+        indexed = len(init.args.posonlyargs) - 1 if init else 0
+        if 1 + indexed > 4:
+            errors.append(f"{node.name}: event topic count exceeds GenVM limit ({1 + indexed})")
+        if node.name == "StepAttempted" and indexed != 3:
+            errors.append(f"StepAttempted: expected exactly 3 indexed fields, found {indexed}")
+    return errors
+
+
 def main() -> int:
     errors = []
     errors.extend(check_file(CONTRACTS[0], REQUIRED_DUEPROCESS))
     errors.extend(check_file(CONTRACTS[1], REQUIRED_CONSUMER))
+    errors.extend(check_event_topics(CONTRACTS[0]))
 
     due = CONTRACTS[0].read_text(encoding="utf-8")
     if "self." in due[due.find("def semantic_check"):due.find("class DueProcess")]:

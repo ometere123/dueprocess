@@ -297,3 +297,9 @@ The agent should not report “done” until:
 - `DEPLOYMENT.md` contains real evidence with no placeholders;
 - no secret file/key was committed;
 - all final source/evidence changes are pushed to `main`.
+
+## Proven v0.3 compatibility migrations
+
+The final live deployment proved three narrow Studio-dev migrations. The unavailable `gl.message_raw["datetime"]` path was replaced by the deterministic GenVM standard-library transaction clock, `int(datetime.now(timezone.utc).timestamp())`; TimestampProbe A2 matched the canonical transaction `created_at`. The removed `gl.vm.run_nondet_unsafe` API was replaced by `gl.vm.run_nondet_default` without changing the existing leader/validator re-evaluation. Finally, `StepAttempted` was changed from four indexed fields to three indexed fields, with `verdict` retained in the event blob, because the event signature plus four indexed fields exceeded GenVM's four-topic limit.
+
+SemanticProbe proved the `run_nondet_default` architecture with a real `SATISFIED` result. The earlier malformed CLI argument incident is operator/tooling evidence only. `genvm-lint 0.11.0` still reports a known recognition mismatch for `run_nondet_default`; the live SemanticProbe and final lifecycle are the runtime proof. Local cached-SDK and access failures are tooling limitations, not contract behavior failures.

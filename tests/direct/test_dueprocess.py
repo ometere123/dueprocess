@@ -22,6 +22,13 @@ DECISION_TEXT = "Decision Record. The designated decision maker published the fi
 EXEC_TEXT = "Execution Record. The designated executor carried out the finalized decision for Proposal DP-7."
 
 
+def test_create_charter_uses_transaction_clock(direct_vm, direct_deploy):
+    direct_vm.warp(BASE)
+    contract = direct_deploy(CONTRACT)
+    charter = contract.create_charter("Procedure", "A sufficiently described procedure")
+    assert contract.get_charter(charter)["created_at"] == int(direct_vm._datetime.timestamp())
+
+
 def alice_address():
     """Address fixtures are bytes before deployment; create a runtime Address after GenLayer loads."""
     from gltest.direct import create_address
