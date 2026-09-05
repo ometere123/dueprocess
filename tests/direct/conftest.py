@@ -2,15 +2,31 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 import pytest
+from gltest.direct import loader as direct_loader
 from gltest.direct.loader import deploy_contract
 
 
-PINNED_GENVM_BUNDLE = "v0.2.16"
+PINNED_GENVM_BUNDLE = "v0.6.0-rc3"
+
+
+if __import__("sys").platform == "win32":
+    # gltest 0.30.0rc2 keeps fd 0 open on the injected message file until
+    # the imported SDK consumes it. Windows cannot unlink that file during
+    # loader cleanup, although the injection itself has succeeded.
+    _inject_message_to_fd0 = direct_loader._inject_message_to_fd0
+
+    def _windows_safe_message_injection(vm):
+        try:
+            _inject_message_to_fd0(vm)
+        except PermissionError:
+            pass
+
+    direct_loader._inject_message_to_fd0 = _windows_safe_message_injection
 
 
 @pytest.fixture
 def direct_deploy(direct_vm) -> Callable[..., Any]:
-    """Load the contract's pinned legacy runner from its proven GenVM bundle."""
+    """Load the contract's pinned runner from the v0.6 GenVM bundle."""
     def _deploy(
         contract_path: str,
         *args: Any,

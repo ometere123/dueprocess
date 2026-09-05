@@ -1,5 +1,8 @@
 """Direct-mode tests for DueProcess procedural validity."""
 
+import json
+from datetime import datetime
+
 CONTRACT = "contracts/dueprocess.py"
 CLASSIFIER = r"DUEPROCESS / PROCEDURAL STEP VERIFICATION"
 
@@ -26,7 +29,8 @@ def test_create_charter_uses_transaction_clock(direct_vm, direct_deploy):
     direct_vm.warp(BASE)
     contract = direct_deploy(CONTRACT)
     charter = contract.create_charter("Procedure", "A sufficiently described procedure")
-    assert contract.get_charter(charter)["created_at"] == int(direct_vm._datetime.timestamp())
+    expected_timestamp = int(datetime.fromisoformat(direct_vm._datetime).timestamp())
+    assert contract.get_charter(charter)["created_at"] == expected_timestamp
 
 
 def alice_address():
@@ -40,7 +44,7 @@ def mock_satisfied(vm, pattern, body, evidence):
     vm.mock_web(pattern, {"status": 200, "body": body})
     vm.mock_llm(
         CLASSIFIER,
-        {"verdict": "SATISFIED", "reason": "criterion is grounded in the public record", "evidence": evidence},
+        json.dumps({"verdict": "SATISFIED", "reason": "criterion is grounded in the public record", "evidence": evidence}).encode(),
     )
 
 
@@ -49,7 +53,7 @@ def mock_not_satisfied(vm, pattern=r".*example\.com/.*"):
     vm.mock_web(pattern, {"status": 200, "body": "Public page with unrelated information."})
     vm.mock_llm(
         CLASSIFIER,
-        {"verdict": "NOT_SATISFIED", "reason": "source does not establish the frozen criterion", "evidence": ""},
+        json.dumps({"verdict": "NOT_SATISFIED", "reason": "source does not establish the frozen criterion", "evidence": ""}).encode(),
     )
 
 

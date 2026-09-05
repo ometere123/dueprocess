@@ -14,13 +14,14 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements-direct.txt
-      - run: genvm-lint check contracts/dueprocess.py
-      - run: genvm-lint check contracts/protected_executor.py
+      - name: Configure v0.6 Direct Mode
+        run: echo "GENVM_VERSION=v0.6.0-rc3" >> "$GITHUB_ENV"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/gltest-direct
+          key: gltest-0.30.0rc2-genvm-v0.6.0-rc3
       - name: Run pinned Direct Mode suite
-        run: |
-          cp gltest.direct.config.yaml gltest.config.yaml
-          pytest tests/direct -v
-          git restore gltest.config.yaml
+        run: pytest -p no:gltest -p gltest_direct tests/direct -v
       - run: python scripts/preflight.py
 
   studio-dev-rc:
@@ -32,7 +33,16 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements-test.txt
-      - run: genvm-lint check contracts/dueprocess.py
-      - run: genvm-lint check contracts/protected_executor.py
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/genvm-linter
+          key: genvm-linter-0.11.1rc2-genvm-v0.6.0-rc3
+      - name: Configure GenVM v0.6 RC3
+        run: echo "GENVM_VERSION=v0.6.0-rc3" >> "$GITHUB_ENV"
+      - run: genvm-lint validate contracts/dueprocess.py
+      - run: genvm-lint validate contracts/protected_executor.py
+      - run: genvm-lint schema contracts/dueprocess.py --json
+      - run: genvm-lint schema contracts/protected_executor.py --json
+      - run: python scripts/check_linter_rc2.py contracts/dueprocess.py contracts/protected_executor.py
       - run: python -m py_compile tests/integration/test_studionet_lifecycle.py scripts/check_studio_dev.py
       - run: python scripts/preflight.py
